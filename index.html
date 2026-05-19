@@ -250,12 +250,8 @@ html,body{height:100%;font-family:var(--font);background:var(--bg);color:var(--t
     <div class="sheet-body">
       <div id="post-upload-box" class="img-upload-box"><input type="file" id="post-file" accept="image/*" onchange="postFileChange(event)"><span style="font-size:28px;display:block;margin-bottom:6px;">📷</span><div style="font-size:13px;color:var(--teal-d);font-weight:500;">写真を追加（任意）</div></div>
       <div id="post-img-preview" class="post-img-preview hidden"><img id="post-preview-img" src="" alt=""><button class="rm" onclick="removePostImg()">✕</button></div>
-      <div style="display:flex;gap:8px;margin-bottom:12px;">
-        <button class="ai-inline-btn" style="flex:1;margin-bottom:0;" onclick="openGoogleLens()">🔍 Google レンズで品種を調べる</button>
-      </div>
-      <div style="background:#FFF8E1;border-radius:var(--rs);padding:10px 12px;margin-bottom:12px;font-size:12px;color:#7A5C00;border-left:3px solid #FFC107;">
-        💡 Google レンズで品種名を調べて、下の「品種名」欄に入力してください
-      </div>
+      <button class="ai-inline-btn" onclick="postRunGemini()">✨ AIで品種を自動判定（Gemini）</button>
+      <div id="post-ai-result" class="ai-inline-result hidden"></div>
       <div id="post-ai-result" class="ai-inline-result hidden"></div>
       <label class="form-label">品種名</label>
       <input type="text" class="form-input" id="post-species" placeholder="例：幹之メダカ（フルボディ）">
@@ -442,17 +438,31 @@ function postFileChange(e){
 }
 function removePostImg(){postImgFile=null;postImgSrc=null;document.getElementById('post-file').value='';document.getElementById('post-upload-box').classList.remove('hidden');document.getElementById('post-img-preview').classList.add('hidden');}
 
-function openGoogleLens(){
-  // 写真がアップロードされている場合はGoogle画像検索、ない場合はGoogle レンズ
-  if(postImgSrc){
-    // 画像をBlobに変換してGoogle レンズで開く
-    showToast('Google レンズが開きます。品種名を調べて入力してください📋');
-    setTimeout(()=>{
-      window.open('https://lens.google.com/','_blank');
-    },500);
-  } else {
-    window.open('https://lens.google.com/','_blank');
-  }
+const GEMINI_KEY='AIzaSyCqROM36pgBg7wk2EL-b1H1TQzwW_wi1A4';
+
+async function callGemini(prompt, imgB64=null){
+  const parts=[];
+  if(imgB64) parts.push({inline_data:{mime_type:'image/jpeg',data:imgB64}});
+  parts.push({text:prompt});
+  const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({contents:[{parts}]})
+  });
+  const d=await r.json();
+  return d.candidates?.[0]?.content?.parts?.[0]?.text||'';
+}
+
+async function postRunGemini(){
+  const btn=document.querySelector('.ai-inline-btn');btn.disabled=true;btn.textContent='⏳ 判定中...';
+  const res=document.getElementById('post-ai-result');
+  try{
+    const imgB64=postImgSrc?postImgSrc.split(',')[1]:null;
+    const prompt=imgB64?'このメダカの品種名を15文字以内で一言だけ答えてください。説明不要。':'一般的な改良メダカの品種名を一つ、15文字以内で答えてください。';
+    const name=(await callGemini(prompt,imgB64)).trim().replace(/\n.*/s,'').trim();
+    document.getElementById('post-species').value=name;
+    res.textContent='✨ Gemini判定：'+name;res.classList.remove('hidden');
+  }catch(e){res.textContent='エラー: '+e.message;res.classList.remove('hidden');}
+  btn.disabled=false;btn.textContent='✨ AIで品種を自動判定（Gemini）';
 }
 
 async function submitPost(){
@@ -519,10 +529,8 @@ async function runIdentify(){
   btn.disabled=true;ld.classList.remove('hidden');res.classList.add('hidden');
   const text=document.getElementById('id-text').value.trim();
   try{
-    const sys=`メダカ品種判定専門家です。以下のJSON形式のみで答えてください。\n{"name":"品種名","confidence":確信度0-100,"category":"カテゴリ","difficulty":"初級/中級/上級","comment":"特徴と理由2文"}`;
-    const msgs=idImgB64?[{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:idImgB64}},{type:'text',text:'このメダカを判定してください。JSONのみ。'}]}]:[{role:'user',content:`特徴: ${text||'一般的な改良メダカ'}。JSONのみ。`}];
-    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:400,system:sys,messages:msgs})});
-    const d=await r.json();const raw=d.content?.filter(b=>b.type==='text').map(b=>b.text).join('').replace(/```json|```/g,'').trim();
+    const prompt=`メダカ品種判定専門家として、以下のJSON形式のみで答えてください。他のテキスト不要。\n{"name":"品種名","confidence":確信度0-100,"category":"カテゴリ","difficulty":"初級/中級/上級","comment":"特徴と理由2文"}\n\n${idImgB64?'画像のメダカを判定してください。':'特徴: '+(text||'一般的な改良メダカ')}`;
+    const raw=(await callGemini(prompt,idImgB64)).replace(/```json|```/g,'').trim();
     const j=JSON.parse(raw);
     res.innerHTML=`<div class="result-box"><div style="font-size:15px;font-weight:500;color:var(--teal-d);margin-bottom:4px;">🐟 ${j.name} <span style="font-size:12px;">${j.confidence}%</span></div><div style="font-size:12px;color:var(--text-s);margin-bottom:8px;">${j.category} ／ 難易度：${j.difficulty}</div><div style="font-size:13px;line-height:1.75;">${j.comment}</div><button style="margin-top:12px;padding:7px 16px;border:1px solid var(--teal);border-radius:99px;background:transparent;color:var(--teal);font-size:12px;font-family:var(--font);cursor:pointer;" onclick="prefillPost('${j.name}')">この品種で投稿する →</button></div>`;
     res.classList.remove('hidden');
@@ -539,10 +547,9 @@ async function runAdvice(){
   const btn=document.getElementById('advice-btn');const ld=document.getElementById('advice-loading');
   btn.disabled=true;ld.classList.remove('hidden');
   try{
-    const userMsg=`飼育品種：${breeds||'未指定'}\n質問：${q}`;
-    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:600,system:'あなたはメダカ飼育の専門家です。実践的で具体的なアドバイスを300文字程度で日本語で答えてください。',messages:[...advHistory,{role:'user',content:userMsg}]})});
-    const d=await r.json();const ans=d.content?.filter(b=>b.type==='text').map(b=>b.text).join('').trim();
-    advHistory.push({role:'user',content:userMsg},{role:'assistant',content:ans});
+    const prompt=`あなたはメダカ飼育の専門家です。実践的で具体的なアドバイスを300文字程度で日本語で答えてください。\n飼育品種：${breeds||'未指定'}\n質問：${q}`;
+    const ans=(await callGemini(prompt)).trim();
+    advHistory.push({role:'user',content:q},{role:'assistant',content:ans});
     const hist=document.getElementById('advice-history');const div=document.createElement('div');div.className='card';div.style.marginBottom='14px';
     div.innerHTML=`<div class="card-pad"><div style="font-size:12px;color:var(--text-s);margin-bottom:8px;">💬 ${q}</div><div style="font-size:13px;line-height:1.8;white-space:pre-wrap;">${ans}</div></div>`;
     hist.prepend(div);document.getElementById('advice-q').value='';
