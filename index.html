@@ -250,7 +250,12 @@ html,body{height:100%;font-family:var(--font);background:var(--bg);color:var(--t
     <div class="sheet-body">
       <div id="post-upload-box" class="img-upload-box"><input type="file" id="post-file" accept="image/*" onchange="postFileChange(event)"><span style="font-size:28px;display:block;margin-bottom:6px;">📷</span><div style="font-size:13px;color:var(--teal-d);font-weight:500;">写真を追加（任意）</div></div>
       <div id="post-img-preview" class="post-img-preview hidden"><img id="post-preview-img" src="" alt=""><button class="rm" onclick="removePostImg()">✕</button></div>
-      <button class="ai-inline-btn" onclick="postRunAI()">✨ AIで品種を自動判定</button>
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <button class="ai-inline-btn" style="flex:1;margin-bottom:0;" onclick="openGoogleLens()">🔍 Google レンズで品種を調べる</button>
+      </div>
+      <div style="background:#FFF8E1;border-radius:var(--rs);padding:10px 12px;margin-bottom:12px;font-size:12px;color:#7A5C00;border-left:3px solid #FFC107;">
+        💡 Google レンズで品種名を調べて、下の「品種名」欄に入力してください
+      </div>
       <div id="post-ai-result" class="ai-inline-result hidden"></div>
       <label class="form-label">品種名</label>
       <input type="text" class="form-input" id="post-species" placeholder="例：幹之メダカ（フルボディ）">
@@ -437,16 +442,17 @@ function postFileChange(e){
 }
 function removePostImg(){postImgFile=null;postImgSrc=null;document.getElementById('post-file').value='';document.getElementById('post-upload-box').classList.remove('hidden');document.getElementById('post-img-preview').classList.add('hidden');}
 
-async function postRunAI(){
-  const btn=document.querySelector('.ai-inline-btn');btn.disabled=true;btn.textContent='⏳ 判定中...';
-  const res=document.getElementById('post-ai-result');
-  try{
-    const msgs=postImgSrc?[{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:postImgSrc.split(',')[1]}},{type:'text',text:'このメダカの品種名を15文字以内で一言だけ。'}]}]:[{role:'user',content:'一般的な改良メダカの品種名を一つ、15文字以内で。'}];
-    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:60,system:'メダカの品種名を15文字以内で一言だけ。説明不要。',messages:msgs})});
-    const d=await r.json();const name=d.content?.filter(b=>b.type==='text').map(b=>b.text).join('').trim();
-    document.getElementById('post-species').value=name;res.textContent='✨ AI判定：'+name;res.classList.remove('hidden');
-  }catch(e){res.textContent='エラー: '+e.message;res.classList.remove('hidden');}
-  btn.disabled=false;btn.textContent='✨ AIで品種を自動判定';
+function openGoogleLens(){
+  // 写真がアップロードされている場合はGoogle画像検索、ない場合はGoogle レンズ
+  if(postImgSrc){
+    // 画像をBlobに変換してGoogle レンズで開く
+    showToast('Google レンズが開きます。品種名を調べて入力してください📋');
+    setTimeout(()=>{
+      window.open('https://lens.google.com/','_blank');
+    },500);
+  } else {
+    window.open('https://lens.google.com/','_blank');
+  }
 }
 
 async function submitPost(){
