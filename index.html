@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>めだかの輪</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --teal:#1D9E75;--teal-l:#E1F5EE;--teal-m:#9FE1CB;--teal-d:#0F6E56;
+  --amber:#BA7517;--amber-l:#FAEEDA;
+  --blue:#185FA5;--blue-l:#E6F1FB;
+  --red:#E24B4A;--red-l:#FCEBEB;
+  --bg:#F4F8F6;--surface:#fff;--border:#DDE8E3;
+  --text:#152820;--text-s:#4D7265;
+  --font:'Noto Sans JP',sans-serif;
+  --nav-h:62px;--r:14px;--rs:8px;
+}
+html,body{height:100%;font-family:var(--font);background:var(--bg);color:var(--text);}
+.app{display:flex;flex-direction:column;height:100vh;max-width:480px;margin:0 auto;background:var(--bg);}
+.topbar{height:52px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:10px;flex-shrink:0;}
+.topbar-title{font-size:16px;font-weight:700;flex:1;}
+.topbar-btn{padding:7px 14px;background:var(--teal);color:#fff;border:none;border-radius:99px;font-size:13px;font-weight:500;font-family:var(--font);cursor:pointer;}
+.page-area{flex:1;overflow-y:auto;padding:16px 14px calc(var(--nav-h)+16px);}
+.bottom-nav{height:var(--nav-h);background:var(--surface);border-top:1px solid var(--border);display:flex;position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;z-index:20;}
+.bn-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;border:none;background:none;font-family:var(--font);color:#8FB5A8;}
+.bn-item.active{color:var(--teal);}
+.bn-icon{font-size:22px;}.bn-label{font-size:10px;font-weight:500;}
+/* Auth */
+.auth-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:32px 24px;}
+.auth-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:24px;width:100%;}
+.auth-tabs{display:flex;margin-bottom:20px;border-bottom:1px solid var(--border);}
+.auth-tab{flex:1;padding:10px;text-align:center;font-size:14px;cursor:pointer;color:var(--text-s);border-bottom:2px solid transparent;}
+.auth-tab.active{color:var(--teal);border-bottom-color:var(--teal);font-weight:500;}
+.form-label{font-size:12px;font-weight:500;color:var(--text-s);margin-bottom:5px;display:block;}
+.form-input{width:100%;border:1px solid var(--border);border-radius:var(--rs);padding:10px 12px;font-size:14px;font-family:var(--font);color:var(--text);outline:none;background:var(--surface);margin-bottom:14px;}
+.form-input:focus{border-color:var(--teal);}
+.auth-btn{width:100%;padding:12px;background:var(--teal);border:none;border-radius:99px;color:#fff;font-size:14px;font-weight:500;font-family:var(--font);cursor:pointer;}
+.auth-btn:disabled{background:var(--teal-m);cursor:not-allowed;}
+.auth-msg{font-size:13px;text-align:center;padding:8px;border-radius:var(--rs);margin-bottom:12px;}
+.auth-msg.error{background:var(--red-l);color:var(--red);}
+.auth-msg.success{background:var(--teal-l);color:var(--teal-d);}
+/* Cards */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:14px;box-shadow:0 1px 6px rgba(15,110,86,.05);}
+.card-pad{padding:14px 16px;}
+.sec-hd{font-size:15px;font-weight:700;margin-bottom:14px;}
+.pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11px;margin-top:5px;}
+.pill-teal{background:var(--teal-l);color:var(--teal-d);}
+.pill-amber{background:var(--amber-l);color:var(--amber);}
+.pill-blue{background:var(--blue-l);color:var(--blue);}
+/* Post */
+.post-header{display:flex;align-items:center;gap:10px;padding:12px 14px 8px;}
+.post-av{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;flex-shrink:0;background:var(--teal-l);color:var(--teal-d);}
+.post-name{font-size:14px;font-weight:500;}.post-time{font-size:11px;color:var(--text-s);}
+.ai-tag{font-size:10px;padding:2px 7px;border-radius:99px;background:var(--teal-l);color:var(--teal-d);margin-left:auto;}
+.post-img{width:100%;height:200px;background:var(--teal-l);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;}
+.post-img img{width:100%;height:100%;object-fit:cover;}
+.species-tag{position:absolute;bottom:10px;left:12px;background:rgba(255,255,255,.9);padding:3px 11px;border-radius:99px;font-size:12px;font-weight:500;color:var(--teal-d);}
+.post-body{padding:10px 14px;font-size:14px;line-height:1.7;}
+.post-actions{display:flex;gap:4px;padding:6px 10px 10px;}
+.act-btn{display:flex;align-items:center;gap:5px;padding:7px 12px;border-radius:99px;font-size:13px;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-s);font-family:var(--font);}
+.act-btn.liked{color:var(--red);border-color:#F7C1C1;background:var(--red-l);}
+/* Comments */
+.comments-wrap{border-top:1px solid var(--border);padding:12px 14px;}
+.comment-item{display:flex;gap:8px;margin-bottom:10px;}
+.c-av{width:26px;height:26px;border-radius:50%;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:var(--teal-l);color:var(--teal-d);}
+.c-bubble{background:var(--bg);border-radius:0 var(--rs) var(--rs) var(--rs);padding:7px 10px;flex:1;}
+.c-name{font-size:11px;font-weight:500;margin-bottom:2px;}.c-text{font-size:12px;color:var(--text-s);line-height:1.5;}
+.c-input-row{display:flex;gap:8px;align-items:center;margin-top:8px;}
+.c-input{flex:1;border:1px solid var(--border);border-radius:99px;padding:7px 14px;font-size:13px;font-family:var(--font);color:var(--text);outline:none;background:var(--bg);}
+.c-input:focus{border-color:var(--teal);}
+.c-send{width:32px;height:32px;border-radius:50%;background:var(--teal);border:none;cursor:pointer;font-size:14px;color:#fff;flex-shrink:0;}
+/* Sheet */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;display:flex;align-items:flex-end;justify-content:center;}
+.overlay.hidden{display:none!important;}
+.sheet{background:var(--surface);border-radius:20px 20px 0 0;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;}
+.sheet-handle{width:36px;height:4px;background:var(--border);border-radius:99px;margin:12px auto 4px;}
+.sheet-header{display:flex;align-items:center;padding:10px 16px 14px;border-bottom:1px solid var(--border);}
+.sheet-title{font-size:16px;font-weight:700;flex:1;}
+.sheet-close{width:32px;height:32px;border-radius:50%;background:var(--bg);border:none;font-size:18px;cursor:pointer;color:var(--text-s);}
+.sheet-body{padding:16px;}
+.sheet-footer{display:flex;gap:10px;padding:12px 16px;border-top:1px solid var(--border);}
+.btn-cancel{flex:1;padding:11px;border:1px solid var(--border);border-radius:99px;background:transparent;font-size:14px;font-family:var(--font);color:var(--text-s);cursor:pointer;}
+.btn-submit{flex:2;padding:11px;background:var(--teal);border:none;border-radius:99px;font-size:14px;font-weight:500;font-family:var(--font);color:#fff;cursor:pointer;}
+.btn-submit:disabled{background:var(--teal-m);cursor:not-allowed;}
+.img-upload-box{border:1.5px dashed var(--teal-m);border-radius:var(--rs);padding:24px;text-align:center;background:var(--teal-l);cursor:pointer;position:relative;margin-bottom:12px;}
+.img-upload-box input{position:absolute;inset:0;opacity:0;cursor:pointer;}
+.post-img-preview{width:100%;height:130px;border-radius:var(--rs);overflow:hidden;margin-bottom:12px;position:relative;}
+.post-img-preview img{width:100%;height:100%;object-fit:cover;}
+.post-img-preview .rm{position:absolute;top:6px;right:6px;width:26px;height:26px;border-radius:50%;background:rgba(0,0,0,.5);border:none;color:#fff;font-size:14px;cursor:pointer;}
+.ai-inline-btn{width:100%;padding:10px;border:1px solid var(--teal);border-radius:99px;background:var(--teal-l);color:var(--teal-d);font-size:13px;font-weight:500;font-family:var(--font);cursor:pointer;margin-bottom:12px;}
+.ai-inline-result{background:var(--teal-l);border-radius:var(--rs);padding:10px 12px;margin-bottom:12px;font-size:13px;color:var(--teal-d);border-left:3px solid var(--teal);}
+/* Profile */
+.profile-hero{padding:20px 16px;display:flex;gap:14px;background:var(--teal-l);}
+.profile-av-lg{width:60px;height:60px;border-radius:50%;background:var(--teal);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;color:#fff;flex-shrink:0;}
+.profile-stats{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--border);}
+.stat-item{padding:12px;text-align:center;background:var(--surface);}
+.stat-item+.stat-item{border-left:1px solid var(--border);}
+.stat-num{font-size:18px;font-weight:700;}.stat-label{font-size:10px;color:var(--text-s);margin-top:2px;}
+.gallery-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;padding:3px;}
+.gallery-item{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:26px;border-radius:var(--rs);overflow:hidden;background:var(--teal-l);}
+/* Misc */
+.loading{text-align:center;padding:40px;color:var(--text-s);}
+.fish-spin{font-size:32px;animation:swim .9s ease-in-out infinite;display:block;margin-bottom:12px;}
+@keyframes swim{0%,100%{transform:translateX(-6px) rotate(-5deg);}50%{transform:translateX(6px) rotate(5deg);}}
+.empty{text-align:center;padding:40px;color:var(--text-s);font-size:14px;}
+.toast{position:fixed;bottom:calc(var(--nav-h)+12px);left:50%;transform:translateX(-50%) translateY(40px);background:var(--text);color:#fff;padding:10px 18px;border-radius:99px;font-size:13px;opacity:0;transition:all .25s;pointer-events:none;z-index:999;white-space:nowrap;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.hidden{display:none!important;}
+.chips-row{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px;}
+.chip{padding:7px 14px;border-radius:99px;border:1px solid var(--border);background:var(--surface);font-size:13px;font-family:var(--font);cursor:pointer;color:var(--text-s);}
+.chip.sel{background:var(--teal-l);border-color:var(--teal);color:var(--teal-d);font-weight:500;}
+.run-btn{width:100%;padding:13px;background:var(--teal);border:none;border-radius:99px;color:#fff;font-size:14px;font-weight:500;font-family:var(--font);cursor:pointer;margin-bottom:14px;}
+.run-btn:disabled{background:var(--teal-m);cursor:not-allowed;}
+.result-box{background:var(--teal-l);border-radius:var(--rs);padding:14px;border-left:3px solid var(--teal);margin-bottom:14px;}
+.ai-info{background:var(--teal-l);border-radius:var(--rs);padding:12px 14px;display:flex;gap:10px;margin-bottom:14px;}
+.drop-area{border:1.5px dashed var(--teal-m);border-radius:var(--rs);padding:28px;text-align:center;background:var(--teal-l);margin-bottom:12px;cursor:pointer;position:relative;}
+.drop-area input{position:absolute;inset:0;opacity:0;cursor:pointer;}
+.preview-box{width:100%;height:150px;border-radius:var(--rs);overflow:hidden;margin-bottom:12px;display:flex;align-items:center;justify-content:center;font-size:48px;background:var(--teal-l);position:relative;}
+.preview-box img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0;}
+.zukan-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.zukan-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;}
+.zukan-img{height:90px;display:flex;align-items:center;justify-content:center;font-size:36px;}
+.zukan-body{padding:10px 12px;}
+.zukan-name{font-size:14px;font-weight:500;}.zukan-sub{font-size:11px;color:var(--text-s);margin-top:2px;}
+.diary-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px;display:flex;gap:12px;margin-bottom:12px;}
+.diary-add-btn{width:100%;padding:12px;border:1.5px dashed var(--border);border-radius:var(--rs);background:transparent;font-size:13px;font-family:var(--font);color:var(--text-s);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;margin-top:4px;}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <!-- AUTH -->
+  <div id="auth-page">
+    <div class="auth-wrap">
+      <div style="font-size:48px;margin-bottom:12px;">🐟</div>
+      <div style="font-size:24px;font-weight:700;margin-bottom:4px;">めだかの輪</div>
+      <div style="font-size:14px;color:var(--text-s);margin-bottom:32px;">メダカ愛好家のためのSNS</div>
+      <div class="auth-card">
+        <div class="auth-tabs">
+          <div class="auth-tab active" onclick="switchAuthTab('login')">ログイン</div>
+          <div class="auth-tab" onclick="switchAuthTab('signup')">新規登録</div>
+        </div>
+        <div id="auth-msg" class="auth-msg hidden"></div>
+        <div id="login-form">
+          <label class="form-label">メールアドレス</label>
+          <input type="email" class="form-input" id="login-email" placeholder="example@email.com">
+          <label class="form-label">パスワード</label>
+          <input type="password" class="form-input" id="login-pass" placeholder="パスワード">
+          <button class="auth-btn" id="login-btn" onclick="doLogin()">ログイン</button>
+        </div>
+        <div id="signup-form" class="hidden">
+          <label class="form-label">ユーザー名（英数字）</label>
+          <input type="text" class="form-input" id="signup-username" placeholder="tanaka_medaka">
+          <label class="form-label">表示名</label>
+          <input type="text" class="form-input" id="signup-name" placeholder="田中めだか">
+          <label class="form-label">メールアドレス</label>
+          <input type="email" class="form-input" id="signup-email" placeholder="example@email.com">
+          <label class="form-label">パスワード（6文字以上）</label>
+          <input type="password" class="form-input" id="signup-pass" placeholder="6文字以上">
+          <button class="auth-btn" id="signup-btn" onclick="doSignup()">アカウント作成</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div id="main-app" class="hidden" style="display:flex;flex-direction:column;height:100%;">
+    <div class="topbar">
+      <span style="font-size:18px;">🐟</span>
+      <span class="topbar-title" id="topbar-title">タイムライン</span>
+      <button class="topbar-btn" onclick="openPostSheet()">＋ 投稿</button>
+    </div>
+    <div class="page-area">
+      <div id="page-feed"><div id="posts-list"><div class="loading"><span class="fish-spin">🐟</span>読み込み中...</div></div></div>
+      <div id="page-identify" class="hidden">
+        <div class="sec-hd">✨ AI品種判定</div>
+        <div class="ai-info"><span style="font-size:20px;">🤖</span><div style="font-size:13px;color:var(--teal-d);line-height:1.6;">写真または特徴テキストをもとにClaudeが品種を判定します。</div></div>
+        <div id="id-drop" class="drop-area"><input type="file" id="id-file" accept="image/*" onchange="idFile(event)"><div style="font-size:32px;margin-bottom:8px;">📷</div><div style="font-size:14px;font-weight:500;color:var(--teal-d);">写真をアップロード</div><div style="font-size:12px;color:var(--text-s);margin-top:3px;">タップして選択</div></div>
+        <div id="id-preview" class="preview-box hidden">🐟</div>
+        <div class="chips-row"><button class="chip sel" onclick="idSample('mikino',this)">光体型サンプル</button><button class="chip" onclick="idSample('yokihi',this)">橙系サンプル</button><button class="chip" onclick="idSample('sanshoku',this)">多色系サンプル</button></div>
+        <label class="form-label">または特徴をテキストで入力</label>
+        <textarea class="form-input" id="id-text" rows="3" placeholder="例：背中に青白い光が走り体は細長い。" style="resize:vertical;min-height:72px;line-height:1.6;margin-bottom:12px;"></textarea>
+        <button class="run-btn" id="id-btn" onclick="runIdentify()">🔍 Claudeで判定する</button>
+        <div id="id-loading" class="hidden" style="display:flex;align-items:center;gap:10px;padding:14px 0;color:var(--text-s);font-size:13px;"><span style="font-size:22px;animation:swim .9s ease-in-out infinite;">🐟</span> 判定中...</div>
+        <div id="id-result" class="hidden"></div>
+      </div>
+      <div id="page-advice" class="hidden">
+        <div class="sec-hd">🧠 AI飼育アドバイス</div>
+        <div class="ai-info"><span style="font-size:20px;">💬</span><div style="font-size:13px;color:var(--teal-d);line-height:1.6;">品種を選んで質問するとClaudeがアドバイスします。</div></div>
+        <label class="form-label">飼育中の品種</label>
+        <div class="chips-row" id="breed-chips"><button class="chip sel" onclick="toggleChip(this)">幹之メダカ</button><button class="chip" onclick="toggleChip(this)">楊貴妃メダカ</button><button class="chip" onclick="toggleChip(this)">三色メダカ</button><button class="chip" onclick="toggleChip(this)">ヒメダカ</button><button class="chip" onclick="toggleChip(this)">青メダカ</button></div>
+        <label class="form-label">よくある質問</label>
+        <div class="chips-row" id="q-chips"><button class="chip" onclick="setQ(this,'産卵させるコツを教えてください')">産卵のコツ</button><button class="chip" onclick="setQ(this,'稚魚の育て方を教えてください')">稚魚の育て方</button><button class="chip" onclick="setQ(this,'水温・水質管理について教えてください')">水質管理</button><button class="chip" onclick="setQ(this,'冬越しの方法を教えてください')">冬越し</button><button class="chip" onclick="setQ(this,'餌の与え方・頻度を教えてください')">餌やり</button><button class="chip" onclick="setQ(this,'病気のサインと対処法を教えてください')">病気・対処</button></div>
+        <label class="form-label">質問内容</label>
+        <textarea class="form-input" id="advice-q" rows="3" placeholder="飼育に関する質問を入力..." style="resize:vertical;min-height:72px;line-height:1.6;margin-bottom:12px;"></textarea>
+        <button class="run-btn" id="advice-btn" onclick="runAdvice()">💬 Claudeに聞く</button>
+        <div id="advice-loading" class="hidden" style="display:flex;align-items:center;gap:10px;padding:14px 0;color:var(--text-s);font-size:13px;"><span style="font-size:22px;animation:swim .9s ease-in-out infinite;">🐟</span> 回答を生成中...</div>
+        <div id="advice-history"></div>
+      </div>
+      <div id="page-zukan" class="hidden">
+        <div class="sec-hd">📖 品種図鑑</div>
+        <div class="zukan-grid">
+          <div class="zukan-card"><div class="zukan-img" style="background:var(--teal-l);">🐟</div><div class="zukan-body"><div class="zukan-name">幹之メダカ</div><div class="zukan-sub">改良品種・光体型</div><span class="pill pill-teal">人気品種</span></div></div>
+          <div class="zukan-card"><div class="zukan-img" style="background:var(--amber-l);">🐠</div><div class="zukan-body"><div class="zukan-name">楊貴妃メダカ</div><div class="zukan-sub">改良品種・朱赤系</div><span class="pill pill-amber">入門向け</span></div></div>
+          <div class="zukan-card"><div class="zukan-img" style="background:var(--blue-l);">🐡</div><div class="zukan-body"><div class="zukan-name">三色メダカ</div><div class="zukan-sub">改良品種・多色系</div><span class="pill pill-blue">上級向け</span></div></div>
+          <div class="zukan-card"><div class="zukan-img" style="background:#FBEAF0;">🐟</div><div class="zukan-body"><div class="zukan-name">ヒメダカ</div><div class="zukan-sub">定番品種・黄橙系</div><span class="pill pill-amber">入門向け</span></div></div>
+          <div class="zukan-card"><div class="zukan-img" style="background:#EAF3DE;">🐠</div><div class="zukan-body"><div class="zukan-name">青メダカ</div><div class="zukan-sub">定番品種・青白系</div><span class="pill pill-blue">定番</span></div></div>
+          <div class="zukan-card"><div class="zukan-img" style="background:#EEEDFE;">🐡</div><div class="zukan-body"><div class="zukan-name">黒メダカ</div><div class="zukan-sub">野生型・原種系</div><span class="pill" style="background:#EEEDFE;color:#3C3489;">原種</span></div></div>
+        </div>
+      </div>
+      <div id="page-diary" class="hidden">
+        <div class="sec-hd">📓 飼育日誌</div>
+        <div id="diary-list"><div class="loading"><span class="fish-spin">🐟</span>読み込み中...</div></div>
+        <button class="diary-add-btn" onclick="openDiarySheet()">＋ 日誌を追加</button>
+      </div>
+      <div id="page-profile" class="hidden">
+        <div class="card">
+          <div class="profile-hero">
+            <div class="profile-av-lg" id="profile-av">？</div>
+            <div><div style="font-size:17px;font-weight:700;" id="profile-name">読み込み中...</div><div style="font-size:12px;color:var(--text-s);margin-top:2px;" id="profile-handle">@...</div></div>
+          </div>
+          <div class="profile-stats">
+            <div class="stat-item"><div class="stat-num" id="profile-posts">0</div><div class="stat-label">投稿</div></div>
+            <div class="stat-item"><div class="stat-num">-</div><div class="stat-label">フォロワー</div></div>
+            <div class="stat-item"><div class="stat-num">-</div><div class="stat-label">フォロー中</div></div>
+          </div>
+          <div class="gallery-grid" id="profile-gallery"></div>
+        </div>
+        <button onclick="doLogout()" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:99px;background:transparent;font-size:14px;font-family:var(--font);color:var(--text-s);cursor:pointer;margin-top:8px;">ログアウト</button>
+      </div>
+    </div>
+    <nav class="bottom-nav">
+      <button class="bn-item active" onclick="goPage('feed',this)"><span class="bn-icon">🏠</span><span class="bn-label">ホーム</span></button>
+      <button class="bn-item" onclick="goPage('identify',this)"><span class="bn-icon">✨</span><span class="bn-label">AI判定</span></button>
+      <button class="bn-item" onclick="goPage('advice',this)"><span class="bn-icon">🧠</span><span class="bn-label">アドバイス</span></button>
+      <button class="bn-item" onclick="goPage('zukan',this)"><span class="bn-icon">📖</span><span class="bn-label">図鑑</span></button>
+      <button class="bn-item" onclick="goPage('diary',this)"><span class="bn-icon">📓</span><span class="bn-label">日誌</span></button>
+      <button class="bn-item" onclick="goPage('profile',this)"><span class="bn-icon">👤</span><span class="bn-label">プロフィール</span></button>
+    </nav>
+  </div>
+</div>
+
+<!-- POST SHEET -->
+<div class="overlay hidden" id="post-overlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header"><div class="sheet-title">投稿を作成</div><button class="sheet-close" onclick="closePostSheet()">✕</button></div>
+    <div class="sheet-body">
+      <div id="post-upload-box" class="img-upload-box"><input type="file" id="post-file" accept="image/*" onchange="postFileChange(event)"><span style="font-size:28px;display:block;margin-bottom:6px;">📷</span><div style="font-size:13px;color:var(--teal-d);font-weight:500;">写真を追加（任意）</div></div>
+      <div id="post-img-preview" class="post-img-preview hidden"><img id="post-preview-img" src="" alt=""><button class="rm" onclick="removePostImg()">✕</button></div>
+      <button class="ai-inline-btn" onclick="postRunAI()">✨ AIで品種を自動判定</button>
+      <div id="post-ai-result" class="ai-inline-result hidden"></div>
+      <label class="form-label">品種名</label>
+      <input type="text" class="form-input" id="post-species" placeholder="例：幹之メダカ（フルボディ）">
+      <label class="form-label">コメント</label>
+      <textarea class="form-input" id="post-body" rows="3" placeholder="今日の様子、飼育メモなど..." style="resize:vertical;min-height:72px;line-height:1.6;"></textarea>
+    </div>
+    <div class="sheet-footer"><button class="btn-cancel" onclick="closePostSheet()">キャンセル</button><button class="btn-submit" id="post-submit-btn" onclick="submitPost()">投稿する</button></div>
+  </div>
+</div>
+
+<!-- DIARY SHEET -->
+<div class="overlay hidden" id="diary-overlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header"><div class="sheet-title">日誌を追加</div><button class="sheet-close" onclick="closeDiarySheet()">✕</button></div>
+    <div class="sheet-body">
+      <label class="form-label">タイトル</label>
+      <input type="text" class="form-input" id="diary-title-in" placeholder="例：水換え・産卵確認など">
+      <label class="form-label">内容</label>
+      <textarea class="form-input" id="diary-body-in" rows="3" placeholder="水質データ・観察内容など..." style="resize:vertical;min-height:72px;line-height:1.6;"></textarea>
+      <label class="form-label">タグ</label>
+      <div class="chips-row" id="diary-tag-chips"><button class="chip" onclick="toggleChip(this)">水換え</button><button class="chip" onclick="toggleChip(this)">水質</button><button class="chip" onclick="toggleChip(this)">産卵</button><button class="chip" onclick="toggleChip(this)">稚魚</button><button class="chip" onclick="toggleChip(this)">餌やり</button><button class="chip" onclick="toggleChip(this)">病気</button></div>
+    </div>
+    <div class="sheet-footer"><button class="btn-cancel" onclick="closeDiarySheet()">キャンセル</button><button class="btn-submit" onclick="submitDiary()">記録する</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL='https://fncwuzexshlydrslulad.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZuY3d1emV4c2hseWRyc2x1bGFkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxNjIzOTAsImV4cCI6MjA5NDczODM5MH0.Bsb0uk74Df0WZHy-5HV0PWAzYe4571_3wiSFiu0ft74';
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+let currentUser=null,currentProfile=null,advHistory=[];
+
+async function init(){
+  const {data:{session}}=await sb.auth.getSession();
+  if(session){currentUser=session.user;await loadProfile();showMainApp();}
+}
+
+function switchAuthTab(tab){
+  document.querySelectorAll('.auth-tab').forEach((t,i)=>t.classList.toggle('active',(i===0&&tab==='login')||(i===1&&tab==='signup')));
+  document.getElementById('login-form').classList.toggle('hidden',tab!=='login');
+  document.getElementById('signup-form').classList.toggle('hidden',tab!=='signup');
+  document.getElementById('auth-msg').classList.add('hidden');
+}
+function showAuthMsg(msg,type){const el=document.getElementById('auth-msg');el.textContent=msg;el.className='auth-msg '+type;el.classList.remove('hidden');}
+
+async function doLogin(){
+  const email=document.getElementById('login-email').value.trim();
+  const pass=document.getElementById('login-pass').value;
+  if(!email||!pass){showAuthMsg('メールアドレスとパスワードを入力してください','error');return;}
+  const btn=document.getElementById('login-btn');btn.disabled=true;btn.textContent='ログイン中...';
+  const {data,error}=await sb.auth.signInWithPassword({email,password:pass});
+  if(error){showAuthMsg('ログインに失敗しました: '+error.message,'error');btn.disabled=false;btn.textContent='ログイン';return;}
+  currentUser=data.user;await loadProfile();showMainApp();btn.disabled=false;btn.textContent='ログイン';
+}
+
+async function doSignup(){
+  const username=document.getElementById('signup-username').value.trim();
+  const name=document.getElementById('signup-name').value.trim();
+  const email=document.getElementById('signup-email').value.trim();
+  const pass=document.getElementById('signup-pass').value;
+  if(!username||!name||!email||!pass){showAuthMsg('全ての項目を入力してください','error');return;}
+  if(pass.length<6){showAuthMsg('パスワードは6文字以上にしてください','error');return;}
+  const btn=document.getElementById('signup-btn');btn.disabled=true;btn.textContent='登録中...';
+  const {data,error}=await sb.auth.signUp({email,password:pass});
+  if(error){showAuthMsg('登録に失敗しました: '+error.message,'error');btn.disabled=false;btn.textContent='アカウント作成';return;}
+  currentUser=data.user;
+  await sb.from('profiles').insert({id:currentUser.id,username,display_name:name});
+  await loadProfile();showMainApp();btn.disabled=false;btn.textContent='アカウント作成';
+}
+
+async function doLogout(){
+  await sb.auth.signOut();currentUser=null;currentProfile=null;
+  document.getElementById('main-app').classList.add('hidden');
+  document.getElementById('auth-page').classList.remove('hidden');
+}
+
+async function loadProfile(){
+  if(!currentUser)return;
+  const {data}=await sb.from('profiles').select('*').eq('id',currentUser.id).single();
+  currentProfile=data;
+}
+
+function showMainApp(){
+  document.getElementById('auth-page').classList.add('hidden');
+  const m=document.getElementById('main-app');m.classList.remove('hidden');m.style.display='flex';
+  loadFeed();
+}
+
+const PAGE_TITLES={feed:'タイムライン',identify:'AI品種判定',advice:'AI飼育アドバイス',zukan:'品種図鑑',diary:'飼育日誌',profile:'プロフィール'};
+function goPage(page,btn){
+  Object.keys(PAGE_TITLES).forEach(p=>document.getElementById('page-'+p).classList.add('hidden'));
+  document.getElementById('page-'+page).classList.remove('hidden');
+  document.querySelectorAll('.bn-item').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  document.getElementById('topbar-title').textContent=PAGE_TITLES[page];
+  document.querySelector('.page-area').scrollTop=0;
+  if(page==='feed')loadFeed();
+  if(page==='diary')loadDiary();
+  if(page==='profile')loadProfilePage();
+}
+
+async function loadFeed(){
+  const list=document.getElementById('posts-list');
+  list.innerHTML='<div class="loading"><span class="fish-spin">🐟</span>読み込み中...</div>';
+  const {data:posts,error}=await sb.from('posts').select('*,profiles(display_name,username),likes(id,user_id),comments(id)').order('created_at',{ascending:false});
+  if(error||!posts||posts.length===0){list.innerHTML='<div class="empty">まだ投稿がありません。最初の投稿をしましょう！🐟</div>';return;}
+  list.innerHTML=posts.map(p=>renderPost(p)).join('');
+}
+
+function renderPost(p){
+  const name=p.profiles?.display_name||'不明';
+  const likeCount=p.likes?.length||0;
+  const commentCount=p.comments?.length||0;
+  const liked=p.likes?.some(l=>l.user_id===currentUser?.id);
+  const timeStr=formatTime(p.created_at);
+  return `<div class="card" id="post-${p.id}">
+    <div class="post-header">
+      <div class="post-av">${name.charAt(0)}</div>
+      <div style="flex:1;"><div class="post-name">${name}</div><div class="post-time">${timeStr}</div></div>
+      ${p.ai_tagged?'<span class="ai-tag">✨ AI判定済み</span>':''}
+    </div>
+    <div class="post-img">${p.image_url?`<img src="${p.image_url}" alt="">`:'<span style="font-size:60px;">🐟</span>'}${p.species?`<div class="species-tag">${p.species}</div>`:''}</div>
+    ${p.body?`<div class="post-body">${p.body}</div>`:''}
+    <div class="post-actions">
+      <button class="act-btn ${liked?'liked':''}" onclick="toggleLike('${p.id}',this,${liked})">${liked?'❤️':'🤍'} <span class="lnum">${likeCount}</span></button>
+      <button class="act-btn" onclick="toggleComments('${p.id}')">💬 ${commentCount}</button>
+    </div>
+    <div class="comments-wrap hidden" id="cmts-${p.id}">
+      <div id="clist-${p.id}"></div>
+      <div class="c-input-row">
+        <div class="c-av">${(currentProfile?.display_name||'?').charAt(0)}</div>
+        <input class="c-input" id="cinput-${p.id}" placeholder="コメントを追加...">
+        <button class="c-send" onclick="sendComment('${p.id}')">➤</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+async function toggleLike(postId,btn,wasLiked){
+  if(!currentUser)return;
+  const numEl=btn.querySelector('.lnum');const num=parseInt(numEl.textContent);
+  if(wasLiked){
+    await sb.from('likes').delete().eq('post_id',postId).eq('user_id',currentUser.id);
+    btn.classList.remove('liked');btn.innerHTML=`🤍 <span class="lnum">${num-1}</span>`;
+    btn.onclick=()=>toggleLike(postId,btn,false);
+  }else{
+    await sb.from('likes').insert({post_id:postId,user_id:currentUser.id});
+    btn.classList.add('liked');btn.innerHTML=`❤️ <span class="lnum">${num+1}</span>`;
+    btn.onclick=()=>toggleLike(postId,btn,true);
+  }
+}
+
+async function toggleComments(postId){
+  const wrap=document.getElementById('cmts-'+postId);
+  const isHidden=wrap.classList.contains('hidden');
+  wrap.classList.toggle('hidden');
+  if(isHidden){await loadComments(postId);document.getElementById('cinput-'+postId)?.focus();}
+}
+
+async function loadComments(postId){
+  const {data}=await sb.from('comments').select('*,profiles(display_name)').eq('post_id',postId).order('created_at');
+  const list=document.getElementById('clist-'+postId);
+  if(!data||data.length===0){list.innerHTML='';return;}
+  list.innerHTML=data.map(c=>`<div class="comment-item"><div class="c-av">${(c.profiles?.display_name||'?').charAt(0)}</div><div class="c-bubble"><div class="c-name">${c.profiles?.display_name||'不明'}</div><div class="c-text">${c.body}</div></div></div>`).join('');
+}
+
+async function sendComment(postId){
+  const inp=document.getElementById('cinput-'+postId);const text=inp.value.trim();
+  if(!text||!currentUser)return;
+  inp.value='';
+  await sb.from('comments').insert({post_id:postId,user_id:currentUser.id,body:text});
+  await loadComments(postId);showToast('コメントを送信しました');
+}
+
+let postImgFile=null,postImgSrc=null;
+function openPostSheet(){document.getElementById('post-overlay').classList.remove('hidden');document.getElementById('post-species').value='';document.getElementById('post-body').value='';document.getElementById('post-ai-result').classList.add('hidden');removePostImg();}
+function closePostSheet(){document.getElementById('post-overlay').classList.add('hidden');}
+function postFileChange(e){
+  const f=e.target.files[0];if(!f)return;postImgFile=f;
+  const r=new FileReader();r.onload=ev=>{postImgSrc=ev.target.result;document.getElementById('post-preview-img').src=postImgSrc;document.getElementById('post-upload-box').classList.add('hidden');document.getElementById('post-img-preview').classList.remove('hidden');};r.readAsDataURL(f);
+}
+function removePostImg(){postImgFile=null;postImgSrc=null;document.getElementById('post-file').value='';document.getElementById('post-upload-box').classList.remove('hidden');document.getElementById('post-img-preview').classList.add('hidden');}
+
+async function postRunAI(){
+  const btn=document.querySelector('.ai-inline-btn');btn.disabled=true;btn.textContent='⏳ 判定中...';
+  const res=document.getElementById('post-ai-result');
+  try{
+    const msgs=postImgSrc?[{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:postImgSrc.split(',')[1]}},{type:'text',text:'このメダカの品種名を15文字以内で一言だけ。'}]}]:[{role:'user',content:'一般的な改良メダカの品種名を一つ、15文字以内で。'}];
+    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:60,system:'メダカの品種名を15文字以内で一言だけ。説明不要。',messages:msgs})});
+    const d=await r.json();const name=d.content?.filter(b=>b.type==='text').map(b=>b.text).join('').trim();
+    document.getElementById('post-species').value=name;res.textContent='✨ AI判定：'+name;res.classList.remove('hidden');
+  }catch(e){res.textContent='エラー: '+e.message;res.classList.remove('hidden');}
+  btn.disabled=false;btn.textContent='✨ AIで品種を自動判定';
+}
+
+async function submitPost(){
+  const species=document.getElementById('post-species').value.trim();
+  const body=document.getElementById('post-body').value.trim();
+  if(!species&&!body){showToast('品種名かコメントを入力してください');return;}
+  const btn=document.getElementById('post-submit-btn');btn.disabled=true;btn.textContent='投稿中...';
+  let image_url=null;
+  if(postImgFile){
+    const ext=postImgFile.name.split('.').pop();
+    const path=`${currentUser.id}/${Date.now()}.${ext}`;
+    const {error:ue}=await sb.storage.from('post-images').upload(path,postImgFile);
+    if(!ue){const {data:url}=sb.storage.from('post-images').getPublicUrl(path);image_url=url.publicUrl;}
+  }
+  const aiTagged=!!document.getElementById('post-ai-result').textContent;
+  const {error}=await sb.from('posts').insert({user_id:currentUser.id,body,species,image_url,ai_tagged:aiTagged});
+  if(error){showToast('投稿に失敗しました: '+error.message);}
+  else{closePostSheet();await loadFeed();showToast('投稿しました！🐟');}
+  btn.disabled=false;btn.textContent='投稿する';
+}
+
+async function loadDiary(){
+  const list=document.getElementById('diary-list');
+  list.innerHTML='<div class="loading"><span class="fish-spin">🐟</span>読み込み中...</div>';
+  const {data,error}=await sb.from('diary_entries').select('*').eq('user_id',currentUser.id).order('created_at',{ascending:false});
+  if(error||!data||data.length===0){list.innerHTML='<div class="empty">日誌がまだありません</div>';return;}
+  list.innerHTML=data.map(d=>{
+    const dt=new Date(d.created_at);const tags=d.tags||[];
+    return `<div class="diary-card"><div style="text-align:center;min-width:40px;"><div style="font-size:22px;font-weight:700;color:var(--teal);line-height:1;">${dt.getDate()}</div><div style="font-size:11px;color:var(--text-s);">${dt.getMonth()+1}月</div></div><div><div style="font-size:14px;font-weight:500;">${d.title||'記録'}</div><div style="font-size:12px;color:var(--text-s);margin-top:4px;line-height:1.6;">${d.body||''}</div><div style="margin-top:7px;display:flex;gap:5px;flex-wrap:wrap;">${tags.map(t=>`<span class="pill pill-teal">${t}</span>`).join('')}</div></div></div>`;
+  }).join('');
+}
+function openDiarySheet(){document.getElementById('diary-overlay').classList.remove('hidden');}
+function closeDiarySheet(){document.getElementById('diary-overlay').classList.add('hidden');}
+async function submitDiary(){
+  const title=document.getElementById('diary-title-in').value.trim();
+  const body=document.getElementById('diary-body-in').value.trim();
+  if(!title&&!body){showToast('内容を入力してください');return;}
+  const tags=[...document.querySelectorAll('#diary-tag-chips .chip.sel')].map(c=>c.textContent);
+  const {error}=await sb.from('diary_entries').insert({user_id:currentUser.id,title,body,tags});
+  if(error){showToast('記録に失敗しました');return;}
+  closeDiarySheet();await loadDiary();showToast('日誌を記録しました');
+}
+
+async function loadProfilePage(){
+  if(!currentProfile)await loadProfile();if(!currentProfile)return;
+  const name=currentProfile.display_name||currentProfile.username||'?';
+  document.getElementById('profile-av').textContent=name.charAt(0);
+  document.getElementById('profile-name').textContent=name;
+  document.getElementById('profile-handle').textContent='@'+(currentProfile.username||'');
+  const {data:posts}=await sb.from('posts').select('id,species,image_url').eq('user_id',currentUser.id).order('created_at',{ascending:false});
+  document.getElementById('profile-posts').textContent=posts?.length||0;
+  document.getElementById('profile-gallery').innerHTML=(posts||[]).map(p=>`<div class="gallery-item">${p.image_url?`<img src="${p.image_url}" style="width:100%;height:100%;object-fit:cover;">`:'🐟'}</div>`).join('');
+}
+
+const ID_SAMPLES={mikino:'背中に青白い光の筋が走り、体は細長い光体型。ヒレは透明で全体に光沢がある。',yokihi:'鮮やかな朱赤・オレンジ色の体色。全身が均一なオレンジで染まる。',sanshoku:'白・黒・赤のまだら模様が特徴的な三色系。色が不規則に入り混じる。'};
+let idImgB64=null;
+function idSample(t,btn){document.querySelectorAll('#page-identify .chip').forEach(c=>c.classList.remove('sel'));btn.classList.add('sel');document.getElementById('id-text').value=ID_SAMPLES[t];}
+function idFile(e){
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();r.onload=ev=>{idImgB64=ev.target.result.split(',')[1];const p=document.getElementById('id-preview');p.innerHTML=`<img src="${ev.target.result}" alt="">`;p.classList.remove('hidden');document.getElementById('id-drop').classList.add('hidden');};r.readAsDataURL(f);
+}
+async function runIdentify(){
+  const btn=document.getElementById('id-btn');const ld=document.getElementById('id-loading');const res=document.getElementById('id-result');
+  btn.disabled=true;ld.classList.remove('hidden');res.classList.add('hidden');
+  const text=document.getElementById('id-text').value.trim();
+  try{
+    const sys=`メダカ品種判定専門家です。以下のJSON形式のみで答えてください。\n{"name":"品種名","confidence":確信度0-100,"category":"カテゴリ","difficulty":"初級/中級/上級","comment":"特徴と理由2文"}`;
+    const msgs=idImgB64?[{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:idImgB64}},{type:'text',text:'このメダカを判定してください。JSONのみ。'}]}]:[{role:'user',content:`特徴: ${text||'一般的な改良メダカ'}。JSONのみ。`}];
+    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:400,system:sys,messages:msgs})});
+    const d=await r.json();const raw=d.content?.filter(b=>b.type==='text').map(b=>b.text).join('').replace(/```json|```/g,'').trim();
+    const j=JSON.parse(raw);
+    res.innerHTML=`<div class="result-box"><div style="font-size:15px;font-weight:500;color:var(--teal-d);margin-bottom:4px;">🐟 ${j.name} <span style="font-size:12px;">${j.confidence}%</span></div><div style="font-size:12px;color:var(--text-s);margin-bottom:8px;">${j.category} ／ 難易度：${j.difficulty}</div><div style="font-size:13px;line-height:1.75;">${j.comment}</div><button style="margin-top:12px;padding:7px 16px;border:1px solid var(--teal);border-radius:99px;background:transparent;color:var(--teal);font-size:12px;font-family:var(--font);cursor:pointer;" onclick="prefillPost('${j.name}')">この品種で投稿する →</button></div>`;
+    res.classList.remove('hidden');
+  }catch(e){res.innerHTML=`<div class="result-box" style="border-color:var(--red);"><div style="color:var(--red);font-size:13px;">エラー: ${e.message}</div></div>`;res.classList.remove('hidden');}
+  btn.disabled=false;ld.classList.add('hidden');
+}
+function prefillPost(name){openPostSheet();document.getElementById('post-species').value=name;}
+
+function toggleChip(el){el.classList.toggle('sel');}
+function setQ(el,q){document.querySelectorAll('#q-chips .chip').forEach(c=>c.classList.remove('sel'));el.classList.add('sel');document.getElementById('advice-q').value=q;}
+async function runAdvice(){
+  const q=document.getElementById('advice-q').value.trim();if(!q){showToast('質問を入力してください');return;}
+  const breeds=[...document.querySelectorAll('#breed-chips .chip.sel')].map(c=>c.textContent).join('、');
+  const btn=document.getElementById('advice-btn');const ld=document.getElementById('advice-loading');
+  btn.disabled=true;ld.classList.remove('hidden');
+  try{
+    const userMsg=`飼育品種：${breeds||'未指定'}\n質問：${q}`;
+    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:600,system:'あなたはメダカ飼育の専門家です。実践的で具体的なアドバイスを300文字程度で日本語で答えてください。',messages:[...advHistory,{role:'user',content:userMsg}]})});
+    const d=await r.json();const ans=d.content?.filter(b=>b.type==='text').map(b=>b.text).join('').trim();
+    advHistory.push({role:'user',content:userMsg},{role:'assistant',content:ans});
+    const hist=document.getElementById('advice-history');const div=document.createElement('div');div.className='card';div.style.marginBottom='14px';
+    div.innerHTML=`<div class="card-pad"><div style="font-size:12px;color:var(--text-s);margin-bottom:8px;">💬 ${q}</div><div style="font-size:13px;line-height:1.8;white-space:pre-wrap;">${ans}</div></div>`;
+    hist.prepend(div);document.getElementById('advice-q').value='';
+  }catch(e){showToast('エラー: '+e.message);}
+  btn.disabled=false;ld.classList.add('hidden');
+}
+
+function formatTime(ts){const d=new Date(ts);const now=new Date();const diff=(now-d)/1000;if(diff<60)return 'たった今';if(diff<3600)return Math.floor(diff/60)+'分前';if(diff<86400)return Math.floor(diff/3600)+'時間前';return `${d.getMonth()+1}/${d.getDate()}`;}
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
+
+init();
+</script>
+</body>
+</html>
