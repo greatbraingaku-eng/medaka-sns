@@ -377,6 +377,14 @@ textarea.sheet-input{resize:vertical;min-height:80px;line-height:1.6;}
       </div>
       <div class="profile-gallery" id="profile-gallery"></div>
       <button class="logout-btn" onclick="doLogout()">ログアウト</button>
+      <div style="text-align:center;padding:16px;border-top:1px solid var(--border);margin-top:8px;">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">🚧 試験運用中（ベータ版）</div>
+        <div style="display:flex;justify-content:center;gap:16px;">
+          <a href="privacy.html" style="font-size:12px;color:var(--accent);text-decoration:none;">プライバシーポリシー</a>
+          <span style="font-size:12px;color:var(--muted);">|</span>
+          <a href="terms.html" style="font-size:12px;color:var(--accent);text-decoration:none;">利用規約</a>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -448,6 +456,16 @@ textarea.sheet-input{resize:vertical;min-height:80px;line-height:1.6;}
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- FOOTER -->
+<div id="app-footer" style="display:none;background:var(--surface);border-top:1px solid var(--border);padding:16px;text-align:center;position:fixed;bottom:calc(var(--nav-h));left:50%;transform:translateX(-50%);width:100%;max-width:430px;z-index:15;">
+  <div style="font-size:11px;color:var(--muted);margin-bottom:6px;">🚧 試験運用中（ベータ版）</div>
+  <div style="display:flex;justify-content:center;gap:16px;">
+    <a href="privacy.html" style="font-size:11px;color:var(--accent);text-decoration:none;">プライバシーポリシー</a>
+    <span style="font-size:11px;color:var(--muted);">|</span>
+    <a href="terms.html" style="font-size:11px;color:var(--accent);text-decoration:none;">利用規約</a>
+  </div>
+</div>
 
 <script>
 const SUPABASE_URL='https://fncwuzexshlydrslulad.supabase.co';
