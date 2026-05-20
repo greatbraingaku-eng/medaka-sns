@@ -244,10 +244,8 @@ textarea.sheet-input{resize:vertical;min-height:80px;line-height:1.6;}
       <button class="auth-btn" id="login-btn" onclick="doLogin()">ログイン</button>
     </div>
     <div id="signup-form" class="hidden">
-      <label class="form-label">ユーザー名</label>
-      <input type="text" class="form-input" id="signup-username" placeholder="medaka_taro">
-      <label class="form-label">表示名</label>
-      <input type="text" class="form-input" id="signup-name" placeholder="田中めだか">
+      <label class="form-label">ニックネーム</label>
+      <input type="text" class="form-input" id="signup-name" placeholder="田中めだか（日本語OK）">
       <label class="form-label">メールアドレス</label>
       <input type="email" class="form-input" id="signup-email" placeholder="your@email.com">
       <label class="form-label">パスワード（6文字以上）</label>
@@ -470,7 +468,7 @@ textarea.sheet-input{resize:vertical;min-height:80px;line-height:1.6;}
 <script>
 const SUPABASE_URL='https://fncwuzexshlydrslulad.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZuY3d1emV4c2hseWRyc2x1bGFkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxNjIzOTAsImV4cCI6MjA5NDczODM5MH0.Bsb0uk74Df0WZHy-5HV0PWAzYe4571_3wiSFiu0ft74';
-const GEMINI_KEY='AIzaSyCqROM36pgBg7wk2EL-b1H1TQzwW_wi1A4';
+const GEMINI_KEY='AIzaSyA3DuLGSgehQiX9w30Ei2HrUquhB0CZcnc';
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 let currentUser=null,currentProfile=null,advHistory=[];
 
@@ -509,17 +507,17 @@ async function doLogin(){
   currentUser=data.user;await loadProfile();showApp();btn.disabled=false;btn.textContent='ログイン';
 }
 async function doSignup(){
-  const username=document.getElementById('signup-username').value.trim();
   const name=document.getElementById('signup-name').value.trim();
   const email=document.getElementById('signup-email').value.trim();
   const pass=document.getElementById('signup-pass').value;
-  if(!username||!name||!email||!pass){showAuthMsg('全ての項目を入力してください','error');return;}
+  if(!name||!email||!pass){showAuthMsg('全ての項目を入力してください','error');return;}
   if(pass.length<6){showAuthMsg('パスワードは6文字以上','error');return;}
   const btn=document.getElementById('signup-btn');btn.disabled=true;btn.textContent='登録中...';
   const {data,error}=await sb.auth.signUp({email,password:pass});
   if(error){showAuthMsg('登録に失敗しました: '+error.message,'error');btn.disabled=false;btn.textContent='アカウント作成';return;}
   currentUser=data.user;
-  await sb.from('profiles').insert({id:currentUser.id,username,display_name:name});
+  // トリガーで自動作成されるが、表示名だけ更新
+  await sb.from('profiles').upsert({id:currentUser.id,username:email.split('@')[0],display_name:name});
   await loadProfile();showApp();btn.disabled=false;btn.textContent='アカウント作成';
 }
 async function doLogout(){
